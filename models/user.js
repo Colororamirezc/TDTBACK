@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const { roles } = require("../constants/roles");
-const { ObjectId } = mongoose.Schema;
 
 const userSchema = new mongoose.Schema(
   {
@@ -9,12 +8,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
+      unique: true,
     },
     grade: String,
     specialty: String,
     administrativePermission: Number,
     FLA: Number,
-    password: String,
+    encryptPassword: String,
     role: {
       type: String,
       default: roles.student,
