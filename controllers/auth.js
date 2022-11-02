@@ -1,104 +1,90 @@
-const User = require("../models/user");
-const bcrypt = require("bcryptjs");
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const asyncHandler = require('express-async-handler');
+const User = require('../models/user');
 
-exports.createUserCtrl = async (req, res = response) => {
-  console.log(
-    "🚀 ~ file: auth.js ~ line 4 ~ exports.createUserCtrl= ~ req",
-    req.body
-  );
-  const {
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, lastName, grade, specialty, administrativePermission, FLA, role, rut, area, password } = req.body
+
+  if (!name || !rut || !password) {
+    res.status(400);
+    throw new Error('Petición errónea');
+  }
+  const userExists = await User.findOne({ rut });
+
+  if (userExists) {
+    res.status(400);
+    throw new Error('El usuario ya existe');
+  }
+
+  const salt = bcrypt.genSaltSync();
+  const encryptPassword = bcrypt.hashSync(password, salt);
+
+  const user = await User.create({
     name,
+    lastName,
     grade,
     specialty,
     administrativePermission,
     FLA,
     role,
     rut,
-    password,
-  } = req.body;
+    area,
+    encryptPassword,
+  });
 
-  try {
-    const existUser = await User.findOne({
-      rut,
-    });
-
-    if (existUser) return res.status(400).send("El usuario ya existe!");
-
-    const salt = bcrypt.genSaltSync();
-    const encryptPassword = bcrypt.hashSync(password, salt);
-
-    await User.create({
-      name,
-      grade,
-      specialty,
-      administrativePermission,
-      FLA,
-      role,
-      rut,
-      encryptPassword,
-    });
-
+  if (user) {
     res.status(201).json({
-      ok: true,
-      message: "User Created",
-      name,
-      grade,
-      specialty,
-      administrativePermission,
-      FLA,
-      role,
-      rut,
+      _id: user.id,
+      name: user.name,
+      lastName: user.lastName,
+      grade: user.grade,
+      specialty: user.specialty,
+      administrativePermission: user.administrativePermission,
+      FLA: user.FLA,
+      role: user.role,
+      rut: user.rut,
+      area: user.area,
+      token: generateToken(user._id),
     });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      ok: false,
-      message: "Favor hablar con el administrador",
-    });
+  } else {
+    res.status(400);
+    throw new Error('Usuario inválido');
   }
+});
+
+const loginUser = asyncHandler(async (req, res) => {
+  const { rut, password } = req.body;
+
+  const user = await User.findOne({ rut });
+
+  if (user && (await bcrypt.compare(password, user.encryptPassword))) {
+    res.json({
+      _id: user.id,
+      name: user.name,
+      lastName: user.lastName,
+      grade: user.grade,
+      specialty: user.specialty,
+      administrativePermission: user.administrativePermission,
+      FLA: user.FLA,
+      role: user.role,
+      rut: user.rut,
+      area: user.area,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error('Invalid credentials');
+  }
+});
+
+const generateToken = id => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '3h',
+  });
 };
 
-// const loginUserCtrl = async (req, res = response) => {
-//   const { email: email1, password: password1 } = req.body;
-//   console.log("Login", req.body);
-//   try {
-//     const usuario = await leeUsuarioByEmail(email1);
-//     console.log("Login-usuario:", usuario);
-//     if (!usuario) {
-//       return res.status(400).json({
-//         ok: false,
-//         msg: "El usuario-constraseña no corresponden",
-//       });
-//     }
-//     const { uid, name, password, email, direccion, rut, celular } = usuario;
-//     //console.log("loginUsuario:", uid, password1, password, name, email);
-//     const validPassword = bcrypt.compareSync(password1, password);
-//     // console.log("loginUsuario-validPassword:", validPassword);
-
-//     if (!validPassword) {
-//       return res.status(400).json({
-//         ok: false,
-//         msg: "El usuario-constraseña no corresponden.",
-//       });
-//     }
-//     //const name=nombres+' '+apellidos;
-//     const token = await generarJWT(uid, email);
-//     // console.log("loginUsuario-obtiene token:", uid, email, token);
-//     res.json({
-//       ok: true,
-//       uid,
-//       email,
-//       name,
-//       direccion,
-//       rut,
-//       celular,
-//       token,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).json({
-//       ok: false,
-//       msg: "Favor hablar con el administrador",
-//     });
-//   }
-// };
+module.exports = {
+  registerUser,
+  loginUser,
+};

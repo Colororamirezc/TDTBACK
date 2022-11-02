@@ -4,6 +4,7 @@ const { roles } = require("../constants/roles");
 const userSchema = new mongoose.Schema(
   {
     name: String,
+    lastName: String,
     rut: {
       type: String,
       required: true,
@@ -14,6 +15,7 @@ const userSchema = new mongoose.Schema(
     specialty: String,
     administrativePermission: Number,
     FLA: Number,
+    area: String,
     encryptPassword: String,
     role: {
       type: String,
